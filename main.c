@@ -134,44 +134,67 @@ int BicubicInterpolation(double* *v, int* nq, double h, int n_interpoints){
     f = malloc(16 * sizeof(double));                // freed
     x = malloc(16 * sizeof(double));                // freed
 
-// Start interpolation of central block,
-//  edge and corner cases are handled independently
-//{{{
-    for(i = 1; i < (nq[0]-2); ++i){
-        for(j = 1; j < (nq[1]-2); ++j){
-            
-        // get f, fx, fy and fxy values of the four corresponding points
-            f[ 0] = (*v)[  i  *nq[1] +   j  ];  // f(i,j)
-            f[ 1] = (*v)[  i  *nq[1] + (j+1)];  // f(i,j+1)
-            f[ 2] = (*v)[(i+1)*nq[1] +   j  ];  // f(i+1,j)
-            f[ 3] = (*v)[(i+1)*nq[1] + (j+1)];  // f(i+1,j+1)
 
-            f[ 4] = ((*v)[  i  *nq[1] + (j+1)] - (*v)[  i  *nq[1] + (j-1)]) / (2*h);   // f_x(i,j)
-            f[ 5] = ((*v)[  i  *nq[1] + (j+2)] - (*v)[  i  *nq[1] +   j  ]) / (2*h);   // f_x(i,j+1)
-            f[ 6] = ((*v)[(i+1)*nq[1] + (j+1)] - (*v)[(i+1)*nq[1] + (j-1)]) / (2*h);   // f_x(i+1,j)
-            f[ 7] = ((*v)[(i+1)*nq[1] + (j+2)] - (*v)[(i+1)*nq[1] +   j  ]) / (2*h);   // f_x(i,j+1)
+// calculate first derivatives
+    double *fx  = calloc(nq[0]*nq[1], sizeof(double));  // freed
+    double *fy  = calloc(nq[0]*nq[1], sizeof(double));  // freed
+    double *fxy = calloc(nq[0]*nq[1], sizeof(double));  // freed
 
-            f[ 8] = ((*v)[(i+1)*nq[1] +   j  ] - (*v)[(i-1)*nq[1] +   j  ]) / (2*h);   // f_y(i,j)
-            f[ 9] = ((*v)[(i+1)*nq[1] + (j+1)] - (*v)[(i-1)*nq[1] + (j+1)]) / (2*h);   // f_y(i,j+1)
-            f[10] = ((*v)[(i+2)*nq[1] +   j  ] - (*v)[  i  *nq[1] +   j  ]) / (2*h);   // f_y(i+1,j)
-            f[11] = ((*v)[(i+2)*nq[1] + (j+1)] - (*v)[  i  *nq[1] + (j+1)]) / (2*h);   // f_y(i,j+1)
 
-            f[12] = ((*v)[(i-1)*nq[1] + (j-1)] + (*v)[(i+1)*nq[1] + (j+1)] - (*v)[(i-1)*nq[1] + (j+1)] - (*v)[(i+1)*nq[1] + (j-1)]) / (4*h*h);   // f_xy(i,j)
-            f[13] = ((*v)[(i-1)*nq[1] +   j  ] + (*v)[(i+1)*nq[1] + (j+2)] - (*v)[(i-1)*nq[1] + (j+2)] - (*v)[(i+1)*nq[1] +   j  ]) / (4*h*h);   // f_xy(i,j+1)
-            f[14] = ((*v)[  i  *nq[1] + (j-1)] + (*v)[(i+2)*nq[1] + (j+1)] - (*v)[  i  *nq[1] + (j+1)] - (*v)[(i+2)*nq[1] + (j-1)]) / (4*h*h);   // f_xy(i+1,j)
-            f[15] = ((*v)[  i  *nq[1] +   j  ] + (*v)[(i+2)*nq[1] + (j+2)] - (*v)[  i  *nq[1] + (j+2)] - (*v)[(i+2)*nq[1] +   j  ]) / (4*h*h);   // f_xy(i+1,j+1)
+// calculate first x derivatives and store them in fx
+    for(i = 0; i < nq[0]; ++i){
+        for(j = 1; j < (nq[1]-1); ++j){
+            fx[i*nq[1] + j] = ( (*v)[i*nq[1] + (j+1)] - (*v)[i*nq[1] + (j-1)] ) / (2*h);
+        }
+    }
+
+// calculate first y derivatives and store them in fy
+    for(i = 1; i < (nq[0]-1); ++i){
+        for(j = 0; j < nq[1]; ++j){
+            fy[i*nq[1] + j] = ((*v)[(i+1)*nq[1] + j] - (*v)[(i-1)*nq[1] + j]) / (2*h);
+        }
+    }
+
+// calculate cross xy derivatives and store them in fxy
+    for(i = 1; i < (nq[0]-1); ++i){
+        for(j = 1; j < (nq[1]-1); ++j){
+            fxy[i*nq[1] + j] =  ( (*v)[(i-1)*nq[1] + (j-1)] - (*v)[(i-1)*nq[1] + (j+1)] - (*v)[(i+1)*nq[1] + (j-1)] + (*v)[(i+1)*nq[1] + (j+1)] ) / (4*h*h);
+        }
+    }
+
+
+    for(i = 0; i < (nq[0]-1); ++i){
+        for(j = 0; j < (nq[1]-1); ++j){
 
         // Matrix multiplication:   invM * f = x  (m×n * n×1 = m×1)
             for(m = 0; m < 16; ++m){
-                for(n = 0, x[m] = 0.0; n < 16; ++n){
-                    x[m] += invM[m*16 + n] * f[n];
-                }
+                x[m] = 0.0;
+
+                x[m] += invM[m*16 +  0] * (*v)[  i  *nq[0] +   j  ];
+                x[m] += invM[m*16 +  1] * (*v)[  i  *nq[0] + (j+1)];
+                x[m] += invM[m*16 +  2] * (*v)[(i+1)*nq[0] +   j  ];
+                x[m] += invM[m*16 +  3] * (*v)[(i+1)*nq[0] + (j+1)];
+
+                x[m] += invM[m*16 +  4] *   fx[  i  *nq[0] +   j  ];
+                x[m] += invM[m*16 +  5] *   fx[  i  *nq[0] + (j+1)];
+                x[m] += invM[m*16 +  6] *   fx[(i+1)*nq[0] +   j  ];
+                x[m] += invM[m*16 +  7] *   fx[(i+1)*nq[0] + (j+1)];
+
+                x[m] += invM[m*16 +  8] *   fy[  i  *nq[0] +   j  ];
+                x[m] += invM[m*16 +  9] *   fy[  i  *nq[0] + (j+1)];
+                x[m] += invM[m*16 + 10] *   fy[(i+1)*nq[0] +   j  ];
+                x[m] += invM[m*16 + 11] *   fy[(i+1)*nq[0] + (j+1)];
+
+                x[m] += invM[m*16 + 12] *  fxy[  i  *nq[0] +   j  ];
+                x[m] += invM[m*16 + 13] *  fxy[  i  *nq[0] + (j+1)];
+                x[m] += invM[m*16 + 14] *  fxy[(i+1)*nq[0] +   j  ];
+                x[m] += invM[m*16 + 15] *  fxy[(i+1)*nq[0] + (j+1)];
             }
 
         // calculate bicubic polynomial and store it to its appropriate position in v_new
         //  v_old[i*nq[1]+j] = v_new[i*(n_interpoints+1) * ((nq[1]-1)*(n_interpoints+1)+1) + j*(n_interpoints+1)]
-            for(m = 0; m < (n_interpoints+1); ++m){
-                for(n = 0; n < (n_interpoints+1); ++n){
+            for(m = 0; m < (n_interpoints+2); ++m){
+                for(n = 0; n < (n_interpoints+2); ++n){
 
                     for(k = 0, sum = 0.0; k < 4; ++k){
                         for(l = 0; l < 4; ++l){
@@ -184,388 +207,6 @@ int BicubicInterpolation(double* *v, int* nq, double h, int n_interpoints){
             }
         }
     }
-//}}}
-
-// The edge and corner positions have to be treated special
-//  top edge:   (i = 0)
-//{{{
-    for(j = 1; j < (nq[1]-2); ++j){
-
-    // get f, fx, fy and fxy values of the four corresponding points
-        f[ 0] = (*v)[          j  ];  // f(i,j)
-        f[ 1] = (*v)[        (j+1)];  // f(i,j+1)
-        f[ 2] = (*v)[nq[1] +   j  ];  // f(i+1,j)
-        f[ 3] = (*v)[nq[1] + (j+1)];  // f(i+1,j+1)
-
-        f[ 4] = ((*v)[        (j+1)] - (*v)[        (j-1)]) / (2*h);    // f_x(i,j)
-        f[ 5] = ((*v)[        (j+2)] - (*v)[          j  ]) / (2*h);    // f_x(i,j+1)
-        f[ 6] = ((*v)[nq[1] + (j+1)] - (*v)[nq[1] + (j-1)]) / (2*h);    // f_x(i+1,j)
-        f[ 7] = ((*v)[nq[1] + (j+2)] - (*v)[nq[1] +   j  ]) / (2*h);    // f_x(i,j+1)
-
-        f[ 8] = 0.0;                                                // f_y(i,j)
-        f[ 9] = 0.0;                                                // f_y(i,j+1)
-        f[10] = ((*v)[2*nq[1] +   j  ] - (*v)[  j  ]) / (2*h);      // f_y(i+1,j)
-        f[11] = ((*v)[2*nq[1] + (j+1)] - (*v)[(j+1)]) / (2*h);      // f_y(i,j+1)
-
-        f[12] = 0.0;                                                                                    // f_xy(i,j)
-        f[13] = 0.0;                                                                                    // f_xy(i,j+1)
-        f[14] = ((*v)[(j-1)] + (*v)[2*nq[1] + (j+1)] - (*v)[(j+1)] - (*v)[2*nq[1] + (j-1)]) / (4*h*h);  // f_xy(i+1,j)
-        f[15] = ((*v)[  j  ] + (*v)[2*nq[1] + (j+2)] - (*v)[(j+2)] - (*v)[2*nq[1] +   j  ]) / (4*h*h);  // f_xy(i+1,j+1)
-
-    // Matrix multiplication:   invM * f = x  (m×n * n×1 = m×1)
-        for(m = 0; m < 16; ++m){
-            for(n = 0, x[m] = 0.0; n < 16; ++n){
-                x[m] += invM[m*16 + n] * f[n];
-            }
-        }
-    
-    // calculate bicubic polynomial and store it to its appropriate position in v_new
-    //  v_old[i*nq[1]+j] = v_new[i*(n_interpoints+1) * ((nq[1]-1)*(n_interpoints+1)+1) + j*(n_interpoints+1)]
-        for(m = 0; m < (n_interpoints+1); ++m){
-            for(n = 0; n < (n_interpoints+1); ++n){
-    
-                for(k = 0, sum = 0.0; k < 4; ++k){
-                    for(l = 0; l < 4; ++l){
-                        sum += x[k*4 + l] * pow(base_displacement*n, l) * pow(base_displacement*m, k);
-                    }
-                }
-    
-                v_new[j*(n_interpoints+1) + m*((nq[1]-1)*(n_interpoints+1)+1) + n] = sum;
-            }
-        }
-    }
-//}}}
-
-// bottom edge: (i = nq[0]-2)
-//{{{
-    for(j = 1; j < (nq[1]-2); ++j){
-        
-    // get f, fx, fy and fxy values of the four corresponding points
-        f[ 0] = (*v)[(nq[0]-2)*nq[1] +   j  ];  // f(i,j)
-        f[ 1] = (*v)[(nq[0]-2)*nq[1] + (j+1)];  // f(i,j+1)
-        f[ 2] = (*v)[(nq[0]-1)*nq[1] +   j  ];  // f(i+1,j)
-        f[ 3] = (*v)[(nq[0]-1)*nq[1] + (j+1)];  // f(i+1,j+1)
-
-        f[ 4] = ((*v)[(nq[0]-2)*nq[1] + (j+1)] - (*v)[(nq[0]-2)*nq[1] + (j-1)]) / (2*h);   // f_x(i,j)
-        f[ 5] = ((*v)[(nq[0]-2)*nq[1] + (j+2)] - (*v)[(nq[0]-2)*nq[1] +   j  ]) / (2*h);   // f_x(i,j+1)
-        f[ 6] = ((*v)[(nq[0]-1)*nq[1] + (j+1)] - (*v)[(nq[0]-1)*nq[1] + (j-1)]) / (2*h);   // f_x(i+1,j)
-        f[ 7] = ((*v)[(nq[0]-1)*nq[1] + (j+2)] - (*v)[(nq[0]-1)*nq[1] +   j  ]) / (2*h);   // f_x(i,j+1)
-
-        f[ 8] = ((*v)[(nq[0]-1)*nq[1] +   j  ] - (*v)[(nq[0]-3)*nq[1] +   j  ]) / (2*h);   // f_y(i,j)
-        f[ 9] = ((*v)[(nq[0]-1)*nq[1] + (j+1)] - (*v)[(nq[0]-3)*nq[1] + (j+1)]) / (2*h);   // f_y(i,j+1)
-        f[10] = 0.0;   // f_y(i+1,j)
-        f[11] = 0.0;   // f_y(i,j+1)
-
-        f[12] = ((*v)[(nq[0]-3)*nq[1] + (j-1)] + (*v)[(nq[0]-1)*nq[1] + (j+1)] - (*v)[(nq[0]-3)*nq[1] + (j+1)] - (*v)[(nq[0]-1)*nq[1] + (j-1)]) / (4*h*h);   // f_xy(i,j)
-        f[13] = ((*v)[(nq[0]-3)*nq[1] +   j  ] + (*v)[(nq[0]-1)*nq[1] + (j+2)] - (*v)[(nq[0]-3)*nq[1] + (j+2)] - (*v)[(nq[0]-1)*nq[1] +   j  ]) / (4*h*h);   // f_xy(i,j+1)
-        f[14] = 0.0;   // f_xy(i+1,j)
-        f[15] = 0.0;   // f_xy(i+1,j+1)
-
-    // Matrix multiplication:   invM * f = x  (m×n * n×1 = m×1)
-        for(m = 0; m < 16; ++m){
-            for(n = 0, x[m] = 0.0; n < 16; ++n){
-                x[m] += invM[m*16 + n] * f[n];
-            }
-        }
-
-    // calculate bicubic polynomial and store it to its appropriate position in v_new
-    //  v_old[i*nq[1]+j] = v_new[i*(n_interpoints+1) * ((nq[1]-1)*(n_interpoints+1)+1) + j*(n_interpoints+1)]
-        for(m = 0; m < (n_interpoints+2); ++m){
-            for(n = 0; n < (n_interpoints+1); ++n){
-
-                for(k = 0, sum = 0.0; k < 4; ++k){
-                    for(l = 0; l < 4; ++l){
-                        sum += x[k*4 + l] * pow(base_displacement*n, l) * pow(base_displacement*m, k);
-                    }
-                }
-
-                v_new[(nq[0]-2)*(n_interpoints+1) * ((nq[1]-1)*(n_interpoints+1)+1) + j*(n_interpoints+1) + m*((nq[1]-1)*(n_interpoints+1)+1) + n] = sum;
-            }
-        }
-    }
-//}}}
-
-//  left edge:  (j = 0)
-//{{{
-    for(i = 1; i < (nq[0]-2); ++i){
-
-    // get f, fx, fy and fxy values of the four corresponding points
-        f[ 0] = (*v)[  i  *nq[1]    ];  // f(i,0)
-        f[ 1] = (*v)[  i  *nq[1] + 1];  // f(i,1)
-        f[ 2] = (*v)[(i+1)*nq[1]    ];  // f(i+1,0)
-        f[ 3] = (*v)[(i+1)*nq[1] + 1];  // f(i+1,1)
-
-        f[ 4] = 0.0;                                                    // f_x(i,0)
-        f[ 5] = ((*v)[  i  *nq[1] + 2] - (*v)[  i  *nq[1]]) / (2*h);    // f_x(i,1)
-        f[ 6] = 0.0;                                                    // f_x(i+1,0)
-        f[ 7] = ((*v)[(i+1)*nq[1] + 2] - (*v)[(i+1)*nq[1]]) / (2*h);    // f_x(i,1)
-
-        f[ 8] = ((*v)[(i+1)*nq[1]    ] - (*v)[(i-1)*nq[1]    ]) / (2*h);   // f_y(i,0)
-        f[ 9] = ((*v)[(i+1)*nq[1] + 1] - (*v)[(i-1)*nq[1] + 1]) / (2*h);   // f_y(i,1)
-        f[10] = ((*v)[(i+2)*nq[1]    ] - (*v)[  i  *nq[1]    ]) / (2*h);   // f_y(i+1,0)
-        f[11] = ((*v)[(i+2)*nq[1] + 1] - (*v)[  i  *nq[1] + 1]) / (2*h);   // f_y(i,1)
-
-        f[12] = 0.0;                                                                                                // f_xy(i,0)
-        f[13] = ((*v)[(i-1)*nq[1]] + (*v)[(i+1)*nq[1] + 2] - (*v)[(i-1)*nq[1] + 2] - (*v)[(i+1)*nq[1]]) / (4*h*h);  // f_xy(i,1)
-        f[14] = 0.0;                                                                                                // f_xy(i+1,0)
-        f[15] = ((*v)[  i  *nq[1]] + (*v)[(i+2)*nq[1] + 2] - (*v)[  i  *nq[1] + 2] - (*v)[(i+2)*nq[1]]) / (4*h*h);  // f_xy(i+1,1)
-
-    // Matrix multiplication:   invM * f = x  (m×n * n×1 = m×1)
-        for(m = 0; m < 16; ++m){
-            for(n = 0, x[m] = 0.0; n < 16; ++n){
-                x[m] += invM[m*16 + n] * f[n];
-            }
-        }
-    
-    // calculate bicubic polynomial and store it to its appropriate position in v_new
-    //  v_old[i*nq[1]+j] = v_new[i*(n_interpoints+1) * ((nq[1]-1)*(n_interpoints+1)+1) + j*(n_interpoints+1)]
-        for(m = 0; m < (n_interpoints+1); ++m){
-            for(n = 0; n < (n_interpoints+1); ++n){
-    
-                for(k = 0, sum = 0.0; k < 4; ++k){
-                    for(l = 0; l < 4; ++l){
-                        sum += x[k*4 + l] * pow(base_displacement*n, l) * pow(base_displacement*m, k);
-                    }
-                }
-    
-                v_new[i*(n_interpoints+1) * ((nq[1]-1)*(n_interpoints+1)+1) + m*((nq[1]-1)*(n_interpoints+1)+1) + n] = sum;
-            }
-        }
-    }
-//}}}
-
-// right edge:  (j = nq[1]-2)
-//{{{
-    for(i = 1; i < (nq[0]-2); ++i){
-        
-    // get f, fx, fy and fxy values of the four corresponding points
-        f[ 0] = (*v)[  i  *nq[1] + (nq[1]-2)];  // f(i,j)
-        f[ 1] = (*v)[  i  *nq[1] + (nq[1]-1)];  // f(i,j+1)
-        f[ 2] = (*v)[(i+1)*nq[1] + (nq[1]-2)];  // f(i+1,j)
-        f[ 3] = (*v)[(i+1)*nq[1] + (nq[1]-1)];  // f(i+1,j+1)
-    
-        f[ 4] = ((*v)[  i  *nq[1] + (nq[1]-1)] - (*v)[  i  *nq[1] + (nq[1]-3)]) / (2*h);    // f_x(i,j)
-        f[ 5] = 0.0;                                                                        // f_x(i,j+1)
-        f[ 6] = ((*v)[(i+1)*nq[1] + (nq[1]-1)] - (*v)[(i+1)*nq[1] + (nq[1]-3)]) / (2*h);    // f_x(i+1,j)
-        f[ 7] = 0.0;                                                                        // f_x(i,j+1)
-    
-        f[ 8] = ((*v)[(i+1)*nq[1] + (nq[1]-2)] - (*v)[(i-1)*nq[1] + (nq[1]-2)]) / (2*h);    // f_y(i,j)
-        f[ 9] = ((*v)[(i+1)*nq[1] + (nq[1]-1)] - (*v)[(i-1)*nq[1] + (nq[1]-1)]) / (2*h);    // f_y(i,j+1)
-        f[10] = ((*v)[(i+2)*nq[1] + (nq[1]-2)] - (*v)[  i  *nq[1] + (nq[1]-2)]) / (2*h);    // f_y(i+1,j)
-        f[11] = ((*v)[(i+2)*nq[1] + (nq[1]-1)] - (*v)[  i  *nq[1] + (nq[1]-1)]) / (2*h);    // f_y(i,j+1)
-    
-        f[12] = ((*v)[(i-1)*nq[1] + (nq[1]-3)] + (*v)[(i+1)*nq[1] + (nq[1]-1)] - (*v)[(i-1)*nq[1] + (nq[1]-1)] - (*v)[(i+1)*nq[1] + (nq[1]-3)]) / (4*h*h);  // f_xy(i,j)
-        f[13] = 0.0;                                                                                                                                        // f_xy(i,j+1)
-        f[14] = ((*v)[  i  *nq[1] + (nq[1]-3)] + (*v)[(i+2)*nq[1] + (nq[1]-1)] - (*v)[  i  *nq[1] + (nq[1]-1)] - (*v)[(i+2)*nq[1] + (nq[1]-3)]) / (4*h*h);  // f_xy(i+1,j)
-        f[15] = 0.0;                                                                                                                                        // f_xy(i+1,j+1)
-    
-    // Matrix multiplication:   invM * f = x  (m×n * n×1 = m×1)
-        for(m = 0; m < 16; ++m){
-            for(n = 0, x[m] = 0.0; n < 16; ++n){
-                x[m] += invM[m*16 + n] * f[n];
-            }
-        }
-    
-    // calculate bicubic polynomial and store it to its appropriate position in v_new
-    //  v_old[i*nq[1]+j] = v_new[i*(n_interpoints+1) * ((nq[1]-1)*(n_interpoints+1)+1) + j*(n_interpoints+1)]
-        for(m = 0; m < (n_interpoints+1); ++m){
-            for(n = 0; n < (n_interpoints+2); ++n){
-    
-                for(k = 0, sum = 0.0; k < 4; ++k){
-                    for(l = 0; l < 4; ++l){
-                        sum += x[k*4 + l] * pow(base_displacement*n, l) * pow(base_displacement*m, k);
-                    }
-                }
-    
-                v_new[i*(n_interpoints+1) * ((nq[1]-1)*(n_interpoints+1)+1) + (nq[1]-2)*(n_interpoints+1) + m*((nq[1]-1)*(n_interpoints+1)+1) + n] = sum;
-            }
-        }
-    }
-//}}}
-
-// top left corner:     (i = 0, j = 0)
-//{{{
-// get f, fx, fy and fxy values of the four corresponding points
-    f[ 0] = (*v)[0];            // f(0,0)
-    f[ 1] = (*v)[1];            // f(0,1)
-    f[ 2] = (*v)[nq[1]];        // f(1,0)
-    f[ 3] = (*v)[nq[1] + 1];    // f(1,1)
-
-    f[ 4] = 0.0;                                    // f_x(0,0)
-    f[ 5] = ((*v)[2] - (*v)[0]) / (2*h);            // f_x(0,1)
-    f[ 6] = 0.0;                                    // f_x(1,0)
-    f[ 7] = ((*v)[nq[1] + 2] - (*v)[nq[1]]) / (2*h);// f_x(1,1)
-
-    f[ 8] = 0.0;                                    // f_y(0,0)
-    f[ 9] = 0.0;                                    // f_y(0,1)
-    f[10] = ((*v)[2*nq[1]]     - (*v)[0]) / (2*h);  // f_y(1,0)
-    f[11] = ((*v)[2*nq[1] + 1] - (*v)[2]) / (2*h);  // f_y(1,1)
-
-    f[12] = 0.0;                                                // f_xy(0,0)
-    f[13] = 0.0;                                                // f_xy(0,1)
-    f[14] = 0.0;                                                // f_xy(1,0)
-    f[15] = ((*v)[0] + (*v)[12] - (*v)[2] - (*v)[10]) / (4*h*h);// f_xy(1,1)
-
-// Matrix multiplication:   invM * f = x  (m×n * n×1 = m×1)
-    for(m = 0; m < 16; ++m){
-        for(n = 0, x[m] = 0.0; n < 16; ++n){
-            x[m] += invM[m*16 + n] * f[n];
-        }
-    }
-
-// calculate bicubic polynomial and store it to its appropriate position in v_new
-//  v_old[i*nq[1]+j] = v_new[i*(n_interpoints+1) * ((nq[1]-1)*(n_interpoints+1)+1) + j*(n_interpoints+1)]
-    for(m = 0; m < (n_interpoints+1); ++m){
-        for(n = 0; n < (n_interpoints+1); ++n){
-
-            for(k = 0, sum = 0.0; k < 4; ++k){
-                for(l = 0; l < 4; ++l){
-                    sum += x[k*4 + l] * pow(base_displacement*n, l) * pow(base_displacement*m, k);
-                }
-            }
-
-            v_new[m*((nq[1]-1)*(n_interpoints+1)+1) + n] = sum;
-        }
-    }
-//}}}
-
-// top right corner:    (i = 0, j = nq[1]-2)
-//{{{
-// get f, fx, fy and fxy values of the four corresponding points
-    f[ 0] = (*v)[        (nq[1]-2)];  // f(0,(nq[1]-2))
-    f[ 1] = (*v)[        (nq[1]-1)];  // f(0,(nq[1]-1))
-    f[ 2] = (*v)[nq[1] + (nq[1]-2)];  // f(1,(nq[1]-2))
-    f[ 3] = (*v)[nq[1] + (nq[1]-1)];  // f(1,(nq[1]-1))
-    
-    f[ 4] = ((*v)[(nq[1]-1)] - (*v)[(nq[1]-3)]) / (2*h);                // f_x(0,(nq[1]-2))
-    f[ 5] = 0.0;                                                        // f_x(0,(nq[1]-1))
-    f[ 6] = ((*v)[nq[1] + (nq[1]-1)] - (*v)[nq[1] + (nq[1]-3)]) / (2*h);// f_x(1,(nq[1]-2))
-    f[ 7] = 0.0;                                                        // f_x(1,(nq[1]-1))
-    
-    f[ 8] = 0.0;                                                    // f_y(0,(nq[1]-2))
-    f[ 9] = 0.0;                                                    // f_y(0,(nq[1]-1))
-    f[10] = ((*v)[2*nq[1] + (nq[1]-2)] - (*v)[(nq[1]-2)]) / (2*h);  // f_y(1,(nq[1]-2))
-    f[11] = ((*v)[2*nq[1] + (nq[1]-1)] - (*v)[(nq[1]-1)]) / (2*h);  // f_y(1,(nq[1]-1))
-    
-    f[12] = 0.0;                                                                                                    // f_xy(0,(nq[1]-2))
-    f[13] = 0.0;                                                                                                    // f_xy(0,(nq[1]-2)+1)
-    f[14] = ((*v)[(nq[1]-3)] + (*v)[2*nq[1] + (nq[1]-1)] - (*v)[(nq[1]-1)] - (*v)[2*nq[1] + (nq[1]-3)]) / (4*h*h);  // f_xy(0+1,(nq[1]-2))
-    f[15] = 0.0;                                                                                                    // f_xy(0+1,(nq[1]-2)+1)
-
-// Matrix multiplication:   invM * f = x  (m×n * n×1 = m×1)
-    for(m = 0; m < 16; ++m){
-        for(n = 0, x[m] = 0.0; n < 16; ++n){
-            x[m] += invM[m*16 + n] * f[n];
-        }
-    }
-
-// calculate bicubic polynomial and store it to its appropriate position in v_new
-//  v_old[i*nq[1]+j] = v_new[i*(n_interpoints+1) * ((nq[1]-1)*(n_interpoints+1)+1) + j*(n_interpoints+1)]
-    for(m = 0; m < (n_interpoints+1); ++m){
-        for(n = 0; n < (n_interpoints+2); ++n){
-
-            for(k = 0, sum = 0.0; k < 4; ++k){
-                for(l = 0; l < 4; ++l){
-                    sum += x[k*4 + l] * pow(base_displacement*n, l) * pow(base_displacement*m, k);
-                }
-            }
-
-            v_new[(nq[1]-2)*(n_interpoints+1) + m*((nq[1]-1)*(n_interpoints+1)+1) + n] = sum;
-        }
-    }
-//}}}
-
-// bottom left corner:  (i = nq[0]-2, j = 0)
-//{{{
-// get f, fx, fy and fxy values of the four corresponding points
-    f[ 0] = (*v)[(nq[0]-2)*nq[1]    ];  // f((nq[0]-2),0)
-    f[ 1] = (*v)[(nq[0]-2)*nq[1] + 1];  // f((nq[0]-2),1)
-    f[ 2] = (*v)[(nq[0]-1)*nq[1]    ];  // f((nq[0]-1),0)
-    f[ 3] = (*v)[(nq[0]-1)*nq[1] + 1];  // f((nq[0]-1),1)
-
-    f[ 4] = 0.0;                                                        // f_x((nq[0]-2),0)
-    f[ 5] = ((*v)[(nq[0]-2)*nq[1] + 2] - (*v)[(nq[0]-2)*nq[1]]) / (2*h);// f_x((nq[0]-2),1)
-    f[ 6] = 0.0;                                                        // f_x((nq[0]-1),0)
-    f[ 7] = ((*v)[(nq[0]-1)*nq[1] + 2] - (*v)[(nq[0]-1)*nq[1]]) / (2*h);// f_x((nq[0]-1),1)
-
-    f[ 8] = ((*v)[(nq[0]-1)*nq[1]    ] - (*v)[(nq[0]-3)*nq[1]    ]) / (2*h);// f_y((nq[0]-2),0)
-    f[ 9] = ((*v)[(nq[0]-1)*nq[1] + 1] - (*v)[(nq[0]-3)*nq[1] + 1]) / (2*h);// f_y((nq[0]-2),1)
-    f[10] = 0.0;                                                            // f_y((nq[0]-1),0)
-    f[11] = 0.0;                                                            // f_y((nq[0]-1),1)
-
-    f[12] = 0.0;                                                                                                                // f_xy((nq[0]-2),0)
-    f[13] = ((*v)[(nq[0]-3)*nq[1]] + (*v)[(nq[0]-1)*nq[1] + 2] - (*v)[(nq[0]-3)*nq[1] + 2] - (*v)[(nq[0]-1)*nq[1]]) / (4*h*h);  // f_xy((nq[0]-2),1)
-    f[14] = 0.0;                                                                                                                // f_xy((nq[0]-1),0)
-    f[15] = 0.0;                                                                                                                // f_xy((nq[0]-1),1)
-
-// Matrix multiplication:   invM * f = x  (m×n * n×1 = m×1)
-    for(m = 0; m < 16; ++m){
-        for(n = 0, x[m] = 0.0; n < 16; ++n){
-            x[m] += invM[m*16 + n] * f[n];
-        }
-    }
-
-// calculate bicubic polynomial and store it to its appropriate position in v_new
-//  v_old[i*nq[1]+j] = v_new[i*(n_interpoints+1) * ((nq[1]-1)*(n_interpoints+1)+1) + j*(n_interpoints+1)]
-    for(m = 0; m < (n_interpoints+2); ++m){
-        for(n = 0; n < (n_interpoints+1); ++n){
-
-            for(k = 0, sum = 0.0; k < 4; ++k){
-                for(l = 0; l < 4; ++l){
-                    sum += x[k*4 + l] * pow(base_displacement*n, l) * pow(base_displacement*m, k);
-                }
-            }
-
-            v_new[(nq[0]-2)*(n_interpoints+1) * ((nq[1]-1)*(n_interpoints+1)+1) + m*((nq[1]-1)*(n_interpoints+1)+1) + n] = sum;
-        }
-    }
-//}}}
-
-// bottom right corner:  (i = nq[0]-2, j = nq[1]-2)
-//{{{
-// get f, fx, fy and fxy values of the four corresponding points
-    f[ 0] = (*v)[(nq[0]-2)*nq[1] + (nq[1]-2)];  // f((nq[0]-2),(nq[1]-2))
-    f[ 1] = (*v)[(nq[0]-2)*nq[1] + (nq[1]-1)];  // f((nq[0]-2),(nq[1]-1))
-    f[ 2] = (*v)[(nq[0]-1)*nq[1] + (nq[1]-2)];  // f((nq[0]-1),(nq[1]-2))
-    f[ 3] = (*v)[(nq[0]-1)*nq[1] + (nq[1]-1)];  // f((nq[0]-1),(nq[1]-1))
-
-    f[ 4] = ((*v)[(nq[0]-2)*nq[1] + (nq[1]-1)] - (*v)[(nq[0]-2)*nq[1] + (nq[1]-3)]) / (2*h);// f_x((nq[0]-2),(nq[1]-2))
-    f[ 5] = 0.0;                                                                            // f_x((nq[0]-2),(nq[1]-1))
-    f[ 6] = ((*v)[(nq[0]-1)*nq[1] + (nq[1]-1)] - (*v)[(nq[0]-1)*nq[1] + (nq[1]-3)]) / (2*h);// f_x((nq[0]-1),(nq[1]-2))
-    f[ 7] = 0.0;                                                                            // f_x((nq[0]-1),(nq[1]-1))
-
-    f[ 8] = ((*v)[(nq[0]-1)*nq[1] + (nq[1]-2)] - (*v)[(nq[0]-3)*nq[1] + (nq[1]-2)]) / (2*h);// f_y((nq[0]-2),(nq[1]-2))
-    f[ 9] = ((*v)[(nq[0]-1)*nq[1] + (nq[1]-1)] - (*v)[(nq[0]-3)*nq[1] + (nq[1]-1)]) / (2*h);// f_y((nq[0]-2),(nq[1]-1))
-    f[10] = 0.0;                                                                            // f_y((nq[0]-1),(nq[1]-2))
-    f[11] = 0.0;                                                                            // f_y((nq[0]-1),(nq[1]-1))
-
-    f[12] = ((*v)[(nq[0]-3)*nq[1] + (nq[1]-3)] + (*v)[(nq[0]-1)*nq[1] + (nq[1]-1)] - (*v)[(nq[0]-3)*nq[1] + (nq[1]-1)] - (*v)[(nq[0]-1)*nq[1] + (nq[1]-3)]) / (4*h*h);  // f_xy((nq[0]-2),(nq[1]-2))
-    f[13] = 0.0;                                                                                                                                                        // f_xy((nq[0]-2),(nq[1]-1))
-    f[14] = 0.0;                                                                                                                                                        // f_xy((nq[0]-1),(nq[1]-2))
-    f[15] = 0.0;                                                                                                                                                        // f_xy((nq[0]-1),(nq[1]-1))
-
-// Matrix multiplication:   invM * f = x  (m×n * n×1 = m×1)
-    for(m = 0; m < 16; ++m){
-        for(n = 0, x[m] = 0.0; n < 16; ++n){
-            x[m] += invM[m*16 + n] * f[n];
-        }
-    }
-
-// calculate bicubic polynomial and store it to its appropriate position in v_new
-//  v_old[i*nq[1]+j] = v_new[i*(n_interpoints+1) * ((nq[1]-1)*(n_interpoints+1)+1) + j*(n_interpoints+1)]
-    for(m = 0; m < (n_interpoints+2); ++m){
-        for(n = 0; n < (n_interpoints+2); ++n){
-
-            for(k = 0, sum = 0.0; k < 4; ++k){
-                for(l = 0; l < 4; ++l){
-                    sum += x[k*4 + l] * pow(base_displacement*n, l) * pow(base_displacement*m, k);
-                }
-            }
-
-            v_new[(nq[0]-2)*(n_interpoints+1) * ((nq[1]-1)*(n_interpoints+1)+1) + (nq[1]-2)*(n_interpoints+1) + m*((nq[1]-1)*(n_interpoints+1)+1) + n] = sum;
-        }
-    }
-//}}}
 
 // set all points from old v to their appropriate position in v_new
     for(i = 0; i < nq[0]; ++i){
@@ -576,6 +217,10 @@ int BicubicInterpolation(double* *v, int* nq, double h, int n_interpoints){
 
 // free old v and point it to new one
     free((*v)); (*v) = v_new;
+    free(fx);    fx  = NULL;
+    free(fy);    fy  = NULL;
+    free(fxy);   fxy = NULL;
+
     free(f);      f  = NULL;
     free(x);      x  = NULL;
 
