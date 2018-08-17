@@ -240,15 +240,15 @@ int main(int argc, char **argv){
         exit(1);
     }
 
+    int i, j, nq[2];
+
     char * inputfile = argv[1];
     int n_inter = 1;
 
-    int i, j;
-    int    * nq = calloc(2, sizeof(int));
     double *  v = malloc(sizeof(double));
     double ** q = malloc(2 * sizeof(double*));
-              q[0] = malloc(sizeof(double));
-              q[1] = malloc(sizeof(double));
+              q[0] = NULL;
+              q[1] = NULL;
 
 
 // input file
@@ -256,52 +256,31 @@ int main(int argc, char **argv){
     double dq = q[1][1] - q[1][0];
 
 
-// Print old values
-//  to standard error
-    fprintf(stderr, "\nOld Values:\n");
-    for(i = 0; i < nq[0]*nq[1]; ++i){
-        if(i % nq[1] == 0) fprintf(stderr, "\n");
-        fprintf(stderr, "\t%2d  |  % lf\t% lf\t% lf\n", i, q[0][i], q[1][i], v[i]);
-    }
-
-//  to standard out    
-    fprintf(stdout, "\nOld Values:\n");
-    for(i = 0; i < nq[0]; ++i){
-        for(j = 0; j < nq[1]; ++j){
-            fprintf(stdout, "\t% 7.3lf", v[i*nq[1] + j]);
-        }
-        fprintf(stdout, "\n");
-    }
-
-
 // interpolation routine
     BicubicInterpolation(&v, nq, dq, n_inter);
 
+// print new values
+    printf("N");
+    printf("\t%d", ((nq[0] - 1) * (n_inter + 1) + 1));
+    printf("\t%d", ((nq[1] - 1) * (n_inter + 1) + 1));
+    printf("\n");
 
-// Print new values
-//  to standard error
-    fprintf(stderr, "\nNew Values:\n");
     for(i = 0; i < ((nq[0] - 1) * (n_inter + 1) + 1); ++i){
         for(j = 0; j < ((nq[1] - 1) * (n_inter + 1) + 1); ++j){
-            fprintf(stderr, "\t%2d", i*((nq[1] - 1) * (n_inter + 1) + 1) + j);
-            fprintf(stderr, "  |  ");
-            fprintf(stderr, "\t% 7.3lf", dq*i/(n_inter+1));
-            fprintf(stderr, "\t% 7.3lf", dq*j/(n_inter+1));
-            fprintf(stderr, "  |  ");
-            fprintf(stderr, "\t% 7.3lf", v[i*((nq[1] - 1) * (n_inter + 1) + 1) + j]);
-            fprintf(stderr, "\n");
+
+            printf("\t% 12.8lf", q[0][0] + dq/(n_inter+1)*i);
+            printf("\t% 12.8lf", q[1][0] + dq/(n_inter+1)*j);
+            printf("\t% 12.8lf", v[i*((nq[1] - 1) * (n_inter + 1) + 1) + j]);
+            printf("\n");
         }
-        fprintf(stderr, "\n");
+        printf("\n");
     }
 
-//  to standard out
-    fprintf(stdout, "\nNew Values:\n");
-    for(i = 0; i < ((nq[0] - 1) * (n_inter + 1) + 1); ++i){
-        for(j = 0; j < ((nq[1] - 1) * (n_inter + 1) + 1); ++j){
-            fprintf(stdout, "\t% 7.3lf", v[i*((nq[1] - 1) * (n_inter + 1) + 1) + j]);
-        }
-        fprintf(stdout, "\n");
-    }
+// free memory
+    free(v); v = NULL;
+    free(q[0]); q[0] = NULL;
+    free(q[1]); q[1] = NULL;
+    free(q);    q    = NULL;
 
     return 0;
 }
