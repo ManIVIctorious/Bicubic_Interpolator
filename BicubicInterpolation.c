@@ -165,6 +165,74 @@ int BicubicInterpolation(double* *v, int* nq, double h, int n_interpoints){
         }
     }
 
+// above derivatives only fill the grid body, leaving either the top and bottom,
+//  and/or right and left edges to be zero. By using forward and backward differences
+//  these points can be approximated as well:
+//*{{{
+
+// calculate forward and backward x-derivatives for left and right edges, respectively
+    for(i = 0; i < nq[0]; ++i){
+        fx[i*nq[1]             ] = ( (*v)[i*nq[1] + 1        ] - (*v)[i*nq[1]            ] ) / h;
+        fx[i*nq[1] + (nq[1]-1) ] = ( (*v)[i*nq[1] + (nq[1]-1)] - (*v)[i*nq[1] + (nq[1]-2)] ) / h;
+    }
+
+
+// calculate forward and backward y-derivatives for top and bottom edges, respectively
+    for(j = 0; j < nq[1]; ++j){
+        fy[                  j ] = ( (*v)[nq[1]           + j] - (*v)[                  j] ) / h;
+        fy[(nq[0]-1)*nq[1] + j ] = ( (*v)[(nq[0]-1)*nq[1] + j] - (*v)[(nq[0]-2)*nq[1] + j] ) / h;
+    }
+
+
+// calculate forward and backward cross xy-derivatives
+//  for left and right edges:   ([-1;0;1]/(2*dy)) * ([-1,1]/dx) = [1,-1; 0,0; -1,1] / (2*dx*dy)
+    for(i = 1; i < (nq[0]-1); ++i){
+        fxy[i*nq[1]            ] = (
+                                     (*v)[(i-1)*nq[1]            ] - (*v)[(i-1)*nq[1] +     1    ]
+                                   - (*v)[(i+1)*nq[1]            ] + (*v)[(i+1)*nq[1] +     1    ]
+                                   ) / (2*h*h);
+
+        fxy[i*nq[1] + (nq[1]-1)] = (
+                                     (*v)[(i-1)*nq[1] + (nq[1]-2)] - (*v)[(i-1)*nq[1] + (nq[1]-1)]
+                                   - (*v)[(i+1)*nq[1] + (nq[1]-2)] + (*v)[(i+1)*nq[1] + (nq[1]-1)]
+                                   ) / (2*h*h);
+    }
+
+//  for top and bottom edges:   ([-1;1]/dy) * ([-1,0,1]/(2*dx)) = [1,0,-1; -1,0,1] / (2*dx*dy)
+    for(j = 1; j < (nq[1]-1); ++j){
+        fxy[                  j] = (
+                                     (*v)[                  (j-1)] - (*v)[                  (j+1)]
+                                   - (*v)[nq[1]           + (j-1)] + (*v)[nq[1]           + (j+1)]
+                                   ) / (2*h*h);
+
+        fxy[(nq[0]-1)*nq[1] + j] = (
+                                     (*v)[(nq[0]-2)*nq[1] + (j-1)] - (*v)[(nq[0]-2)*nq[1] + (j+1)]
+                                   - (*v)[(nq[0]-1)*nq[1] + (j-1)] + (*v)[(nq[0]-1)*nq[1] + (j+1)]
+                                   ) / (2*h*h);
+    }
+
+// calculate cross xy-derivatives for the corner points
+    fxy[    0          ] = (
+                        (*v)[0]                 - (*v)[1]
+                      - (*v)[nq[1]]             + (*v)[nq[1] + 1]
+                    ) / (h*h);
+
+    fxy[(nq[1]-1)      ] = (
+                        (*v)[(nq[1]-2)]         - (*v)[(nq[1]-1)]
+                      - (*v)[nq[1] + (nq[1]-2)] + (*v)[nq[1] + (nq[1]-1)]
+                    ) / (h*h);
+
+    fxy[(nq[0]-1)*nq[1]] = (
+                        (*v)[(nq[0]-2)*nq[1]            ] - (*v)[(nq[0]-2)*nq[1] +     1    ]
+                      - (*v)[(nq[0]-1)*nq[1]            ] + (*v)[(nq[0]-1)*nq[1] +     1    ]
+                    ) / (h*h);
+
+    fxy[nq[0]*nq[1]-1  ] = (
+                        (*v)[(nq[0]-2)*nq[1] + (nq[1]-2)] - (*v)[(nq[0]-2)*nq[1] + (nq[1]-1)]
+                      - (*v)[(nq[0]-1)*nq[1] + (nq[1]-2)] + (*v)[(nq[0]-1)*nq[1] + (nq[1]-1)]
+                    ) / (h*h);
+
+//}}}*/
 
 //----------------------------------------------------------------------------------------------------
 //*{{{
