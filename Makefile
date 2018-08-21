@@ -10,6 +10,7 @@ CFLAGS = -O2 -Wall -Wextra -march=native
 # source files
   SRC += main.c
   SRC += InputFunction.c
+  SRC += BicubicInterpolation.c
 
 #  MKLINC += `pkg-config --cflags mkl`
   LIB += -lm
