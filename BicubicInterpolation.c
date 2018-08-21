@@ -166,6 +166,42 @@ int BicubicInterpolation(double* *v, int* nq, double h, int n_interpoints){
     }
 
 
+//----------------------------------------------------------------------------------------------------
+//*{{{
+    fprintf(stderr, "\nf:\n");
+    for(i = 0; i < nq[0]; ++i){
+        for(j = 0; j < nq[1]; ++j){
+            fprintf(stderr, "\t% 7.3lf", (*v)[i*nq[1] + j]);
+        }
+        fprintf(stderr, "\n");
+    }
+
+    fprintf(stderr, "\nfx:\n");
+    for(i = 0; i < nq[0]; ++i){
+        for(j = 0; j < nq[1]; ++j){
+            fprintf(stderr, "\t% 7.3lf", fx[i*nq[1] + j]);
+        }
+        fprintf(stderr, "\n");
+    }
+
+    fprintf(stderr, "\nfy:\n");
+    for(i = 0; i < nq[0]; ++i){
+        for(j = 0; j < nq[1]; ++j){
+            fprintf(stderr, "\t% 7.3lf", fy[i*nq[1] + j]);
+        }
+        fprintf(stderr, "\n");
+    }
+
+    fprintf(stderr, "\nfxy:\n");
+    for(i = 0; i < nq[0]; ++i){
+        for(j = 0; j < nq[1]; ++j){
+            fprintf(stderr, "\t% 7.3lf", fxy[i*nq[1] + j]);
+        }
+        fprintf(stderr, "\n");
+    }
+//}}}*/
+//----------------------------------------------------------------------------------------------------
+
 // start interpolation procedure
     for(i = 0; i < (nq[0]-1); ++i){
         for(j = 0; j < (nq[1]-1); ++j){
