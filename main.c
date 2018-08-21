@@ -1,7 +1,9 @@
 
 #include <stdio.h>
-#include <stdlib.h> 
+#include <stdlib.h>
 #include <math.h>
+
+int BicubicInterpolation(double* *v, int* nq, double h, int n_interpoints);
 
 int BicubicInterpolation(double* *v, int* nq, double h, int n_interpoints){
 
@@ -9,17 +11,22 @@ int BicubicInterpolation(double* *v, int* nq, double h, int n_interpoints){
     int n_points_new;
     double sum;
     double base_displacement;
-    double * invM  = NULL;
-    double * v_new = NULL;
-    double * f     = NULL;
-    double * x     = NULL;
+    double * invM  = NULL;  // freed
+    double *fx     = NULL;  // freed
+    double *fy     = NULL;  // freed
+    double *fxy    = NULL;  // freed
+    double * x     = NULL;  // freed
+    double * v_new = NULL;  // set to (*v), old (*v) is freed
 
 // number of resulting data points and their base displacement
     n_points_new = ((nq[0] - 1) * (n_interpoints + 1) + 1) * ((nq[1] - 1) * (n_interpoints + 1) + 1);
     base_displacement = 1.0 / (n_interpoints + 1);
 
-// allocate memory for inverse of M
+// allocate memory for inverse of M, the new value array and the x array
+//  being the result of the equation system invM * [f(1:4); fx(1:4); fy(1:4); fxy(1:4)]
     invM = calloc(16*16, sizeof(double));
+    v_new = malloc(n_points_new * sizeof(double));
+    x = malloc(16 * sizeof(double));
 
 // Fill matrix invM
 //{{{
@@ -127,18 +134,11 @@ int BicubicInterpolation(double* *v, int* nq, double h, int n_interpoints){
     invM[255] =  1.0;
 //}}}
 
-
-// allocate memory for new value array and
-//  the f and x arrays required for the calculation of the interpolation functions
-    v_new = malloc(n_points_new * sizeof(double));  // set to (*v), old (*v) is freed
-    f = malloc(16 * sizeof(double));                // freed
-    x = malloc(16 * sizeof(double));                // freed
-
-
-// calculate first derivatives
-    double *fx  = calloc(nq[0]*nq[1], sizeof(double));  // freed
-    double *fy  = calloc(nq[0]*nq[1], sizeof(double));  // freed
-    double *fxy = calloc(nq[0]*nq[1], sizeof(double));  // freed
+// allocate memory for the x-derivative (fx), y-derivative (fy) and cross-derivative (fxy)
+//  arrays, each containing the respecting derivative for every original point
+    fx  = calloc(nq[0]*nq[1], sizeof(double));
+    fy  = calloc(nq[0]*nq[1], sizeof(double));
+    fxy = calloc(nq[0]*nq[1], sizeof(double));
 
 
 // calculate first x derivatives and store them in fx
@@ -158,11 +158,15 @@ int BicubicInterpolation(double* *v, int* nq, double h, int n_interpoints){
 // calculate cross xy derivatives and store them in fxy
     for(i = 1; i < (nq[0]-1); ++i){
         for(j = 1; j < (nq[1]-1); ++j){
-            fxy[i*nq[1] + j] =  ( (*v)[(i-1)*nq[1] + (j-1)] - (*v)[(i-1)*nq[1] + (j+1)] - (*v)[(i+1)*nq[1] + (j-1)] + (*v)[(i+1)*nq[1] + (j+1)] ) / (4*h*h);
+            fxy[i*nq[1] + j] =  (
+                  (*v)[(i-1)*nq[1] + (j-1)] - (*v)[(i-1)*nq[1] + (j+1)]
+                - (*v)[(i+1)*nq[1] + (j-1)] + (*v)[(i+1)*nq[1] + (j+1)]
+            ) / (4*h*h);
         }
     }
 
 
+// start interpolation procedure
     for(i = 0; i < (nq[0]-1); ++i){
         for(j = 0; j < (nq[1]-1); ++j){
 
@@ -192,7 +196,6 @@ int BicubicInterpolation(double* *v, int* nq, double h, int n_interpoints){
             }
 
         // calculate bicubic polynomial and store it to its appropriate position in v_new
-        //  v_old[i*nq[1]+j] = v_new[i*(n_interpoints+1) * ((nq[1]-1)*(n_interpoints+1)+1) + j*(n_interpoints+1)]
             for(m = 0; m < (n_interpoints+2); ++m){
                 for(n = 0; n < (n_interpoints+2); ++n){
 
@@ -209,20 +212,20 @@ int BicubicInterpolation(double* *v, int* nq, double h, int n_interpoints){
     }
 
 // set all points from old v to their appropriate position in v_new
+//  v_old[i*nq[1]+j] = v_new[i*(n_interpoints+1) * ((nq[1]-1)*(n_interpoints+1)+1) + j*(n_interpoints+1)]
     for(i = 0; i < nq[0]; ++i){
         for(j = 0; j < nq[1]; ++j){
             v_new[ i*(n_interpoints+1) * ((nq[1]-1)*(n_interpoints+1)+1) + j*(n_interpoints+1) ] = (*v)[i*nq[1] + j];
         }
     }
 
-// free old v and point it to new one
+// free all arrays and v_old, then point v to v_new
     free((*v)); (*v) = v_new;
     free(fx);    fx  = NULL;
     free(fy);    fy  = NULL;
     free(fxy);   fxy = NULL;
-
-    free(f);      f  = NULL;
     free(x);      x  = NULL;
+    free(invM); invM = NULL;
 
     return n_points_new;
 }
@@ -231,33 +234,50 @@ int InputFunction(char* inputfile, double** *q, int* nq, double* *v, double** *m
 int BicubicInterpolation(double* *v, int* nq, double h, int n_interpoints);
 
 int main(int argc, char **argv){
-    
-    if(argc < 1){
+
+    if(argc != 2 && argc != 3){
         fprintf(stderr,
-            "\n (-) Error: Please specify input file"
+            "\nSynopsis:"
+            "\n\t%s <input-file> [number-of-interpolation-points]"
+            "\n\n", argv[0]
+        );
+        exit(0);
+    }
+
+    int    n_inter   = 1;
+    char * inputfile = argv[1];
+
+    if(argc == 3){
+        n_inter = atoi(argv[2]);
+    }
+
+
+    int       i, j, nq[2];
+    double    dq;
+    double *  v = NULL;
+    double ** q = NULL;
+
+
+// file input
+    v = malloc(    sizeof(double));
+    q = malloc(2 * sizeof(double*));
+    if(v == NULL || q == NULL){
+        fprintf(stderr,
+            "\n (-) Error in initial memory allocation of *v and/or *q"
             "\n     Aborting...\n\n"
         );
         exit(1);
     }
+    q[0] = NULL;
+    q[1] = NULL;
 
-    int i, j, nq[2];
-
-    char * inputfile = argv[1];
-    int n_inter = 1;
-
-    double *  v = malloc(sizeof(double));
-    double ** q = malloc(2 * sizeof(double*));
-              q[0] = NULL;
-              q[1] = NULL;
-
-
-// input file
     InputFunction(inputfile, &q, nq, &v, NULL, 2, 0);
-    double dq = q[1][1] - q[1][0];
+    dq = q[1][1] - q[1][0];
 
 
-// interpolation routine
+// run interpolation function
     BicubicInterpolation(&v, nq, dq, n_inter);
+
 
 // print new values
     printf("N");
@@ -268,13 +288,14 @@ int main(int argc, char **argv){
     for(i = 0; i < ((nq[0] - 1) * (n_inter + 1) + 1); ++i){
         for(j = 0; j < ((nq[1] - 1) * (n_inter + 1) + 1); ++j){
 
-            printf("\t% 12.8lf", q[0][0] + dq/(n_inter+1)*i);
-            printf("\t% 12.8lf", q[1][0] + dq/(n_inter+1)*j);
-            printf("\t% 12.8lf", v[i*((nq[1] - 1) * (n_inter + 1) + 1) + j]);
+            printf("\t% 16.12lf", q[0][0] + dq/(n_inter+1)*i);
+            printf("\t% 16.12lf", q[1][0] + dq/(n_inter+1)*j);
+            printf("\t% 16.12lf", v[i*((nq[1] - 1) * (n_inter + 1) + 1) + j]);
             printf("\n");
         }
         printf("\n");
     }
+
 
 // free memory
     free(v); v = NULL;
