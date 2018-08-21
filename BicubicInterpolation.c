@@ -174,25 +174,25 @@ int BicubicInterpolation(double* *v, int* nq, double h, int n_interpoints){
             for(m = 0; m < 16; ++m){
                 x[m] = 0.0;
 
-                x[m] += invM[m*16 +  0] * (*v)[  i  *nq[0] +   j  ];
-                x[m] += invM[m*16 +  1] * (*v)[  i  *nq[0] + (j+1)];
-                x[m] += invM[m*16 +  2] * (*v)[(i+1)*nq[0] +   j  ];
-                x[m] += invM[m*16 +  3] * (*v)[(i+1)*nq[0] + (j+1)];
+                x[m] += invM[m*16 +  0] * (*v)[  i  *nq[1] +   j  ];
+                x[m] += invM[m*16 +  1] * (*v)[  i  *nq[1] + (j+1)];
+                x[m] += invM[m*16 +  2] * (*v)[(i+1)*nq[1] +   j  ];
+                x[m] += invM[m*16 +  3] * (*v)[(i+1)*nq[1] + (j+1)];
 
-                x[m] += invM[m*16 +  4] *   fx[  i  *nq[0] +   j  ];
-                x[m] += invM[m*16 +  5] *   fx[  i  *nq[0] + (j+1)];
-                x[m] += invM[m*16 +  6] *   fx[(i+1)*nq[0] +   j  ];
-                x[m] += invM[m*16 +  7] *   fx[(i+1)*nq[0] + (j+1)];
+                x[m] += invM[m*16 +  4] *   fx[  i  *nq[1] +   j  ];
+                x[m] += invM[m*16 +  5] *   fx[  i  *nq[1] + (j+1)];
+                x[m] += invM[m*16 +  6] *   fx[(i+1)*nq[1] +   j  ];
+                x[m] += invM[m*16 +  7] *   fx[(i+1)*nq[1] + (j+1)];
 
-                x[m] += invM[m*16 +  8] *   fy[  i  *nq[0] +   j  ];
-                x[m] += invM[m*16 +  9] *   fy[  i  *nq[0] + (j+1)];
-                x[m] += invM[m*16 + 10] *   fy[(i+1)*nq[0] +   j  ];
-                x[m] += invM[m*16 + 11] *   fy[(i+1)*nq[0] + (j+1)];
+                x[m] += invM[m*16 +  8] *   fy[  i  *nq[1] +   j  ];
+                x[m] += invM[m*16 +  9] *   fy[  i  *nq[1] + (j+1)];
+                x[m] += invM[m*16 + 10] *   fy[(i+1)*nq[1] +   j  ];
+                x[m] += invM[m*16 + 11] *   fy[(i+1)*nq[1] + (j+1)];
 
-                x[m] += invM[m*16 + 12] *  fxy[  i  *nq[0] +   j  ];
-                x[m] += invM[m*16 + 13] *  fxy[  i  *nq[0] + (j+1)];
-                x[m] += invM[m*16 + 14] *  fxy[(i+1)*nq[0] +   j  ];
-                x[m] += invM[m*16 + 15] *  fxy[(i+1)*nq[0] + (j+1)];
+                x[m] += invM[m*16 + 12] *  fxy[  i  *nq[1] +   j  ];
+                x[m] += invM[m*16 + 13] *  fxy[  i  *nq[1] + (j+1)];
+                x[m] += invM[m*16 + 14] *  fxy[(i+1)*nq[1] +   j  ];
+                x[m] += invM[m*16 + 15] *  fxy[(i+1)*nq[1] + (j+1)];
             }
 
         // calculate bicubic polynomial and store it to its appropriate position in v_new
