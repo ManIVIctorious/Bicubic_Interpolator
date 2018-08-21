@@ -3,9 +3,8 @@ CC = gcc
 CFLAGS = -O2 -Wall -Wextra -march=native
 
 # output binary
-#  EXEDIR = $(if ${MyLocalPath}, ${MyLocalPath}, bin)
-  EXEDIR = bin
-  EXE = $(EXEDIR)/bicubic-interpolation
+  EXEDIR = $(if ${MyLocalPath}, ${MyLocalPath}, bin)
+  EXE = $(EXEDIR)/bicubic-interpolator
 
 # source files
   SRC += main.c

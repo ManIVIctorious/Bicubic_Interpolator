@@ -168,7 +168,6 @@ int BicubicInterpolation(double* *v, int* nq, double h, int n_interpoints){
 // above derivatives only fill the grid body, leaving either the top and bottom,
 //  and/or right and left edges to be zero. By using forward and backward differences
 //  these points can be approximated as well:
-//*{{{
 
 // calculate forward and backward x-derivatives for left and right edges, respectively
     for(i = 0; i < nq[0]; ++i){
@@ -232,43 +231,7 @@ int BicubicInterpolation(double* *v, int* nq, double h, int n_interpoints){
                       - (*v)[(nq[0]-1)*nq[1] + (nq[1]-2)] + (*v)[(nq[0]-1)*nq[1] + (nq[1]-1)]
                     ) / (h*h);
 
-//}}}*/
 
-//----------------------------------------------------------------------------------------------------
-//*{{{
-    fprintf(stderr, "\nf:\n");
-    for(i = 0; i < nq[0]; ++i){
-        for(j = 0; j < nq[1]; ++j){
-            fprintf(stderr, "\t% 7.3lf", (*v)[i*nq[1] + j]);
-        }
-        fprintf(stderr, "\n");
-    }
-
-    fprintf(stderr, "\nfx:\n");
-    for(i = 0; i < nq[0]; ++i){
-        for(j = 0; j < nq[1]; ++j){
-            fprintf(stderr, "\t% 7.3lf", fx[i*nq[1] + j]);
-        }
-        fprintf(stderr, "\n");
-    }
-
-    fprintf(stderr, "\nfy:\n");
-    for(i = 0; i < nq[0]; ++i){
-        for(j = 0; j < nq[1]; ++j){
-            fprintf(stderr, "\t% 7.3lf", fy[i*nq[1] + j]);
-        }
-        fprintf(stderr, "\n");
-    }
-
-    fprintf(stderr, "\nfxy:\n");
-    for(i = 0; i < nq[0]; ++i){
-        for(j = 0; j < nq[1]; ++j){
-            fprintf(stderr, "\t% 7.3lf", fxy[i*nq[1] + j]);
-        }
-        fprintf(stderr, "\n");
-    }
-//}}}*/
-//----------------------------------------------------------------------------------------------------
 
 // start interpolation procedure
     for(i = 0; i < (nq[0]-1); ++i){
