@@ -1,0 +1,15 @@
+# Executable name
+  EXENAME = bicubic-inerpolator
+
+# Additional libraries, includes and packages
+  LIB      = -lm
+  INC      = 
+  PACKAGES = 
+
+# Preprocessor flags
+  PPF = 
+
+# Source Files
+  SRC += main.c
+  SRC += BicubicInterpolation.c
+  SRC += InputFunction.c
